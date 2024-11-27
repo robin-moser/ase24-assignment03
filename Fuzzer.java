@@ -9,6 +9,9 @@ import java.util.stream.Stream;
 import java.util.Random;
 
 public class Fuzzer {
+
+    int errorCount = 0;
+
     public static void main(String[] args) {
         if (args.length != 1) {
             System.err.println("Usage: java Fuzzer.java \"<command_to_fuzz>\"");
@@ -26,7 +29,8 @@ public class Fuzzer {
         ProcessBuilder builder = getProcessBuilderForCommand(commandToFuzz, workingDirectory);
         System.out.printf("Command: %s\n", builder.command());
 
-        runCommand(builder, seedInput, getMutatedInputs(seedInput, List.of(
+        Fuzzer fuzzer = new Fuzzer();
+        fuzzer.runCommand(builder, seedInput, getMutatedInputs(seedInput, List.of(
             // insert random characters
             input -> insertRandomCharacters(input, 10, 0x20, 0x7F), // ASCII
             input -> insertRandomCharacters(input, 10, 0, 0x1F), // Control characters
@@ -68,6 +72,12 @@ public class Fuzzer {
             input -> cssAndScriptMutation(input)
 
         )));
+
+        System.out.printf("Total errors: %s\n", fuzzer.errorCount);
+        if (fuzzer.errorCount > 0) {
+            System.exit(1);
+        }
+
     }
 
     private static ProcessBuilder getProcessBuilderForCommand(String command, String workingDirectory) {
@@ -83,11 +93,9 @@ public class Fuzzer {
         return builder;
     }
 
-    private static void runCommand(ProcessBuilder builder, String seedInput, List<String> mutatedInputs) {
+    private void runCommand(ProcessBuilder builder, String seedInput, List<String> mutatedInputs) {
         Stream.concat(Stream.of(seedInput), mutatedInputs.stream()).forEach(
             input -> {
-
-
                 try {
 
                     Process process = builder.start();
@@ -105,8 +113,8 @@ public class Fuzzer {
                     String output = readStreamIntoString(streamFromCommand);
                     streamFromCommand.close();
 
-
                     if (exitCode != 0) {
+                        errorCount++;
                         System.out.println("Program input:");
                         System.out.println(input);
                         System.out.println("Program output:");
@@ -115,6 +123,7 @@ public class Fuzzer {
                     }
 
                 } catch (Exception e) {
+                    errorCount++;
                     System.out.println("Exception:");
                     e.printStackTrace();
                 }
