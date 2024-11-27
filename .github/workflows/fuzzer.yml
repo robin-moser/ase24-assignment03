@@ -1,0 +1,23 @@
+name: Fuzzing the html parser
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Fuzz the html parser
+        run: java Fuzzer.java "./html_parser_linux_x86_64"
